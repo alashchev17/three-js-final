@@ -1,33 +1,89 @@
 precision highp float;
 
 uniform float uTime;
-uniform vec2 uMouse; // normalized mouse coordinates
-uniform vec2 uIntersectionUV; // UV coordinates of raycaster intersection
-uniform float uMouseVelocity; // speed of mouse movement
-uniform float uIsIntersecting; // 1.0 if intersecting, 0.0 if not
 uniform sampler2D uTextureA;
 uniform sampler2D uTextureB;
 uniform sampler2D uNoise;
+uniform sampler2D uPaintNoise;
+uniform sampler2D uDrawMap;
 
 varying vec2 vUv;
 
+// Rotate UV coordinates
+vec2 rotateUv(float degrees, vec2 center, vec2 uv) {
+  float angle = radians(degrees);
+  mat2 rotationMatrix = mat2(
+    cos(angle), -sin(angle), 
+    sin(angle), cos(angle)
+  );
+  vec2 translatedUv = uv - center;
+  vec2 rotatedUv = rotationMatrix * translatedUv;
+  return rotatedUv + center;
+}
+
+// Create paint-like diffusion around drawMap
+float getPaintDiffusion(vec2 uv) {
+  float baseDrawMap = texture2D(uDrawMap, uv).r;
+  
+  if (baseDrawMap > 0.1) {
+    return baseDrawMap; // Already revealed area
+  }
+  
+  // Use paint noise for diffusion effect
+  vec2 noiseUv1 = rotateUv(uTime * 5.0, vec2(0.5), uv);
+  vec2 noiseUv2 = rotateUv(uTime * -8.0, vec2(0.5), uv);
+  
+  float noise1 = texture2D(uPaintNoise, noiseUv1 * 15.0).r;
+  float noise2 = texture2D(uPaintNoise, noiseUv2 * 25.0).r;
+  float noise3 = texture2D(uPaintNoise, uv * 40.0).r; // Fine detail
+  
+  // Multiply for fractal-like behavior
+  float combinedNoise = noise1 * noise2 * noise3;
+  
+  // Sample drawMap in multiple directions to detect nearby paint
+  float radius = 0.08;
+  float paintInfluence = 0.0;
+  
+  for (float angle = 0.0; angle < 6.28; angle += 0.785) { // 8 directions
+    vec2 offset = vec2(cos(angle), sin(angle)) * radius;
+    float nearbyPaint = texture2D(uDrawMap, uv + offset).r;
+    paintInfluence = max(paintInfluence, nearbyPaint);
+  }
+  
+  // Create organic paint bleeding effect
+  float diffusion = paintInfluence * combinedNoise;
+  diffusion = smoothstep(0.4, 0.8, diffusion);
+  
+  return diffusion * 0.5; // Subtle paint bleeding
+}
+
 void main() {
-  float baseRadius = 0.1;
-  float velocityRadius = uMouseVelocity * 1.2;
-  float totalRadius = baseRadius + velocityRadius;
+  // Get base drawMap
+  float baseReveal = texture2D(uDrawMap, vUv).r;
   
-  float distance = length(vUv - uIntersectionUV);
+  // Apply paint noise to all revealed areas to create organic edges
+  if (baseReveal > 0.01) {
+    vec2 paintNoiseUv = vUv * 20.0 + uTime * 0.05;
+    float paintNoise = texture2D(uPaintNoise, paintNoiseUv).r;
+    
+    // Make paint noise affect the edges more
+    float edgeFactor = smoothstep(0.0, 1.0, baseReveal);
+    baseReveal *= mix(0.5, 1.0, smoothstep(0.2, 0.8, paintNoise));
+  }
   
-  float reveal = 1.0 - smoothstep(totalRadius * 0.5, totalRadius, distance);
+  float paintDiffusion = getPaintDiffusion(vUv);
+  float reveal = max(baseReveal, paintDiffusion);
   
-  reveal *= uIsIntersecting;
+  // Use cloud noise for unrevealed area displacement
+  vec2 cloudNoiseUV = vUv * 2.0 + uTime * 0.1;
+  float cloudNoise = texture2D(uNoise, cloudNoiseUV).r;
+  vec2 displacement = vec2((cloudNoise - 0.5) * 0.1);
   
-  vec2 noiseUV = vUv * 8.0 + uTime * 0.1;
-  float noise = texture2D(uNoise, noiseUV).r;
-  vec2 displacement = vec2((noise - 0.5) * 0.1);
+  // Apply cloud noise only to non-revealed areas
+  vec2 noiseDisplacement = displacement * (1.0 - reveal);
   
-  vec4 textureA = texture2D(uTextureA, vUv + displacement);
-  vec4 textureB = texture2D(uTextureB, vUv + displacement);
+  vec4 textureA = texture2D(uTextureA, vUv + noiseDisplacement);
+  vec4 textureB = texture2D(uTextureB, vUv + noiseDisplacement);
   
   gl_FragColor = mix(textureA, textureB, reveal);
 }

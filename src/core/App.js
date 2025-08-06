@@ -69,10 +69,11 @@ export class App {
         this.#loaders.loadGLTF('/models/picture_frame.glb'),
       ])
 
-      const [textureA, textureB, noiseTexture] = await Promise.all([
+      const [textureA, textureB, cloudNoiseTexture, paintNoiseTexture] = await Promise.all([
         this.#loaders.loadTexture('/textures/imagery/1.jpg'),
         this.#loaders.loadTexture('/textures/imagery/2.jpg'),
         this.#loaders.loadTexture('/textures/cloud-noise/cloud_noise.png'),
+        this.#loaders.loadTexture('/textures/cloud-noise/paint_noise.png'),
       ])
 
       try {
@@ -82,7 +83,7 @@ export class App {
         this.#scene.setupFallbackLighting()
       }
 
-      this.#assets = { wallGltf, frameGltf, textureA, textureB, noiseTexture }
+      this.#assets = { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, paintNoiseTexture }
     } catch (error) {
       console.error('Failed to load assets:', error)
       throw error
@@ -95,14 +96,14 @@ export class App {
       return
     }
 
-    const { wallGltf, frameGltf, textureA, textureB, noiseTexture } = this.#assets
+    const { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, paintNoiseTexture } = this.#assets
 
     this.#wall = new Wall(wallGltf)
     this.#wall.group.position.set(0, -7.5, 14.4)
     this.#wall.group.rotation.set(-0.025, 0, 0)
 
     this.#frame = new Frame(frameGltf)
-    this.#interactivePlane = new InteractivePlane([textureA, textureB], noiseTexture)
+    this.#interactivePlane = new InteractivePlane([textureA, textureB], cloudNoiseTexture, paintNoiseTexture, this.#renderer.instance)
 
     this.#scene.add(this.#wall.group)
     this.#scene.add(this.#frame.group)
@@ -202,7 +203,7 @@ export class App {
         name: 'Position X',
         property: 'frameX',
         type: 'range',
-        range: [-5, 5, 0.1],
+        range: [-10, 5, 0.1],
         folder: 'Frame Transform',
         initialValue: this.#frame.group.position.x,
         onChange: (value) => {
@@ -214,7 +215,7 @@ export class App {
         name: 'Position Y',
         property: 'frameY',
         type: 'range',
-        range: [-2, 5, 0.1],
+        range: [-10, 5, 0.1],
         folder: 'Frame Transform',
         initialValue: this.#frame.group.position.y,
         onChange: (value) => {
@@ -226,7 +227,7 @@ export class App {
         name: 'Position Z',
         property: 'frameZ',
         type: 'range',
-        range: [-2, 2, 0.1],
+        range: [-10, 2, 0.1],
         folder: 'Frame Transform',
         initialValue: this.#frame.group.position.z,
         onChange: (value) => {

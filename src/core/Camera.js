@@ -8,7 +8,7 @@ export class Camera {
   constructor() {
     this.instance = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100)
 
-    this.instance.position.set(0, 1.5, 8)
+    this.instance.position.set(0, 1.5, 25)
     this.#originalPosition = this.instance.position.clone()
     this.#originalRotation = this.instance.rotation.clone()
   }
