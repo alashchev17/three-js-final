@@ -24,10 +24,10 @@ void main() {
   
   vec2 noiseUV = vUv * 8.0 + uTime * 0.1;
   float noise = texture2D(uNoise, noiseUV).r;
-  vec2 displacement = vec2((noise - 0.5) * 0.02);
+  vec2 displacement = vec2((noise - 0.5) * 0.1);
   
   vec4 textureA = texture2D(uTextureA, vUv + displacement);
-  vec4 textureB = texture2D(uTextureB, vUv - displacement);
+  vec4 textureB = texture2D(uTextureB, vUv + displacement);
   
   gl_FragColor = mix(textureA, textureB, reveal);
 }
