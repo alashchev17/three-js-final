@@ -23,8 +23,8 @@ export class Frame {
       }
     })
 
-    this.group.rotation.set(0, 4.69752172161341, 0)
+    this.group.rotation.set(0, 0, 0)
     this.group.scale.set(0.04, 0.04, 0.04)
-    this.group.position.set(4, -3.4, 0)
+    this.group.position.set(0, 0, 0)
   }
 }

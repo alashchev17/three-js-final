@@ -69,11 +69,12 @@ export class App {
         this.#loaders.loadGLTF('/models/picture_frame.glb'),
       ])
 
-      const [textureA, textureB, cloudNoiseTexture, paintNoiseTexture] = await Promise.all([
+      const [textureA, textureB, cloudNoiseTexture, paintNoiseTexture, brushTexture] = await Promise.all([
         this.#loaders.loadTexture('/textures/imagery/1.jpg'),
         this.#loaders.loadTexture('/textures/imagery/2.jpg'),
         this.#loaders.loadTexture('/textures/cloud-noise/cloud_noise.png'),
         this.#loaders.loadTexture('/textures/cloud-noise/paint_noise.png'),
+        this.#loaders.loadTexture('/textures/paint-brush-mask.webp'),
       ])
 
       try {
@@ -83,7 +84,7 @@ export class App {
         this.#scene.setupFallbackLighting()
       }
 
-      this.#assets = { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, paintNoiseTexture }
+      this.#assets = { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, paintNoiseTexture, brushTexture }
     } catch (error) {
       console.error('Failed to load assets:', error)
       throw error
@@ -96,14 +97,20 @@ export class App {
       return
     }
 
-    const { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, paintNoiseTexture } = this.#assets
+    const { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, paintNoiseTexture, brushTexture } = this.#assets
 
     this.#wall = new Wall(wallGltf)
     this.#wall.group.position.set(0, -7.5, 14.4)
     this.#wall.group.rotation.set(-0.025, 0, 0)
 
     this.#frame = new Frame(frameGltf)
-    this.#interactivePlane = new InteractivePlane([textureA, textureB], cloudNoiseTexture, paintNoiseTexture, this.#renderer.instance)
+    this.#interactivePlane = new InteractivePlane(
+      [textureA, textureB],
+      cloudNoiseTexture,
+      paintNoiseTexture,
+      brushTexture,
+      this.#renderer.instance
+    )
 
     this.#scene.add(this.#wall.group)
     this.#scene.add(this.#frame.group)
@@ -300,10 +307,11 @@ export class App {
   }
 
   #animate = () => {
-    const time = this.#clock.getElapsedTime()
+    const dTime = this.#clock.getDelta()
+    const time = this.#clock.elapsedTime
 
     if (this.#interactivePlane) {
-      this.#interactivePlane.update(time)
+      this.#interactivePlane.update(time, dTime)
     }
 
     this.#orbitControls.update()
