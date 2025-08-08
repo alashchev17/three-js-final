@@ -62,10 +62,9 @@ export class App {
         this.#loaders.loadGLTF('/models/picture_frame.glb'),
       ])
 
-      const [textureA, textureB, cloudNoiseTexture, grainPaperTexture, brushTexture] = await Promise.all([
+      const [textureA, textureB, grainPaperTexture, brushTexture] = await Promise.all([
         this.#loaders.loadTexture('/textures/imagery/1.jpg'),
         this.#loaders.loadTexture('/textures/imagery/2.jpg'),
-        this.#loaders.loadTexture('/textures/cloud-noise/cloud_noise.png'),
         this.#loaders.loadTexture('/textures/paper-texture.jpg'),
         this.#loaders.loadTexture('/textures/paint-brush-mask.webp'),
       ])
@@ -73,14 +72,14 @@ export class App {
       try {
         await this.#loaders.loadEnvironment('/env-map/bethnal_green_entrance_4k.exr', this.#renderer.instance, this.#scene.instance, {
           environmentIntensity: 0.5,
-          backgroundIntensity: 0.3
+          backgroundIntensity: 0.3,
         })
       } catch (envError) {
         console.warn('HDRI failed to load, using fallback lighting.')
         this.#scene.setupFallbackLighting()
       }
 
-      this.#assets = { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, grainPaperTexture, brushTexture }
+      this.#assets = { wallGltf, frameGltf, textureA, textureB, grainPaperTexture, brushTexture }
     } catch (error) {
       console.error('Failed to load assets:', error)
       throw error
@@ -93,7 +92,7 @@ export class App {
       return
     }
 
-    const { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, grainPaperTexture, brushTexture } = this.#assets
+    const { wallGltf, frameGltf, textureA, textureB, brushTexture } = this.#assets
 
     this.#wall = new Wall(wallGltf)
     this.#wall.group.position.set(0, 0, 0)
@@ -101,13 +100,7 @@ export class App {
     this.#wall.group.scale.setScalar(7)
 
     this.#frame = new Frame(frameGltf)
-    this.#interactivePlane = new InteractivePlane(
-      [textureA, textureB],
-      cloudNoiseTexture,
-      grainPaperTexture,
-      brushTexture,
-      this.#renderer.instance
-    )
+    this.#interactivePlane = new InteractivePlane([textureA, textureB], brushTexture, this.#renderer.instance)
 
     this.#scene.add(this.#wall.group)
     this.#scene.add(this.#frame.group)
@@ -167,29 +160,181 @@ export class App {
 
   #setupDebugUI() {
     const createTransformControls = (name, target, folder, updateCallback) => [
-      { name: 'Scale', property: `${name}Scale`, type: 'range', range: [0.01, 10, 0.01], folder, initialValue: target.scale.x, onChange: (v) => { target.scale.setScalar(v); updateCallback?.() }},
-      { name: 'Position X', property: `${name}X`, type: 'range', range: [-10, 10, 0.1], folder, initialValue: target.position.x, onChange: (v) => { target.position.x = v; updateCallback?.() }},
-      { name: 'Position Y', property: `${name}Y`, type: 'range', range: [-10, 10, 0.1], folder, initialValue: target.position.y, onChange: (v) => { target.position.y = v; updateCallback?.() }},
-      { name: 'Position Z', property: `${name}Z`, type: 'range', range: [-10, 10, 0.1], folder, initialValue: target.position.z, onChange: (v) => { target.position.z = v; updateCallback?.() }},
-      { name: 'Rotation X', property: `${name}RotX`, type: 'range', range: [0, Math.PI * 2, 0.01], folder, initialValue: target.rotation.x, onChange: (v) => { target.rotation.x = v; updateCallback?.() }},
-      { name: 'Rotation Y', property: `${name}RotY`, type: 'range', range: [0, Math.PI * 2, 0.01], folder, initialValue: target.rotation.y, onChange: (v) => { target.rotation.y = v; updateCallback?.() }},
-      { name: 'Rotation Z', property: `${name}RotZ`, type: 'range', range: [0, Math.PI * 2, 0.01], folder, initialValue: target.rotation.z, onChange: (v) => { target.rotation.z = v; updateCallback?.() }}
+      {
+        name: 'Scale',
+        property: `${name}Scale`,
+        type: 'range',
+        range: [0.01, 10, 0.01],
+        folder,
+        initialValue: target.scale.x,
+        onChange: (v) => {
+          target.scale.setScalar(v)
+          updateCallback?.()
+        },
+      },
+      {
+        name: 'Position X',
+        property: `${name}X`,
+        type: 'range',
+        range: [-10, 10, 0.1],
+        folder,
+        initialValue: target.position.x,
+        onChange: (v) => {
+          target.position.x = v
+          updateCallback?.()
+        },
+      },
+      {
+        name: 'Position Y',
+        property: `${name}Y`,
+        type: 'range',
+        range: [-10, 10, 0.1],
+        folder,
+        initialValue: target.position.y,
+        onChange: (v) => {
+          target.position.y = v
+          updateCallback?.()
+        },
+      },
+      {
+        name: 'Position Z',
+        property: `${name}Z`,
+        type: 'range',
+        range: [-10, 10, 0.1],
+        folder,
+        initialValue: target.position.z,
+        onChange: (v) => {
+          target.position.z = v
+          updateCallback?.()
+        },
+      },
+      {
+        name: 'Rotation X',
+        property: `${name}RotX`,
+        type: 'range',
+        range: [0, Math.PI * 2, 0.01],
+        folder,
+        initialValue: target.rotation.x,
+        onChange: (v) => {
+          target.rotation.x = v
+          updateCallback?.()
+        },
+      },
+      {
+        name: 'Rotation Y',
+        property: `${name}RotY`,
+        type: 'range',
+        range: [0, Math.PI * 2, 0.01],
+        folder,
+        initialValue: target.rotation.y,
+        onChange: (v) => {
+          target.rotation.y = v
+          updateCallback?.()
+        },
+      },
+      {
+        name: 'Rotation Z',
+        property: `${name}RotZ`,
+        type: 'range',
+        range: [0, Math.PI * 2, 0.01],
+        folder,
+        initialValue: target.rotation.z,
+        onChange: (v) => {
+          target.rotation.z = v
+          updateCallback?.()
+        },
+      },
     ]
 
     const debugControls = [
-      { name: 'Orbit Controls', property: 'orbitControls', type: 'boolean', initialValue: false, onChange: (v) => v ? this.#orbitControls.enable() : this.#orbitControls.disable() },
-      { name: 'Show Wall', property: 'showWall', type: 'boolean', initialValue: true, onChange: (v) => setVisibility(this.#wall?.group, v) },
-      { name: 'Show Frame', property: 'showFrame', type: 'boolean', initialValue: true, onChange: (v) => setVisibility(this.#frame?.group, v) },
-      { name: 'Show Plane', property: 'showPlane', type: 'boolean', initialValue: true, onChange: (v) => setVisibility(this.#interactivePlane?.mesh, v) },
-      { name: 'Wireframe Mode', property: 'wireframe', type: 'boolean', initialValue: false, onChange: (v) => { if (this.#wall) setWireframeMode(this.#wall.group, v); if (this.#frame) setWireframeMode(this.#frame.group, v) }},
-      
+      {
+        name: 'Orbit Controls',
+        property: 'orbitControls',
+        type: 'boolean',
+        initialValue: false,
+        onChange: (v) => (v ? this.#orbitControls.enable() : this.#orbitControls.disable()),
+      },
+      {
+        name: 'Show Wall',
+        property: 'showWall',
+        type: 'boolean',
+        initialValue: true,
+        onChange: (v) => setVisibility(this.#wall?.group, v),
+      },
+      {
+        name: 'Show Frame',
+        property: 'showFrame',
+        type: 'boolean',
+        initialValue: true,
+        onChange: (v) => setVisibility(this.#frame?.group, v),
+      },
+      {
+        name: 'Show Plane',
+        property: 'showPlane',
+        type: 'boolean',
+        initialValue: true,
+        onChange: (v) => setVisibility(this.#interactivePlane?.mesh, v),
+      },
+      {
+        name: 'Wireframe Mode',
+        property: 'wireframe',
+        type: 'boolean',
+        initialValue: false,
+        onChange: (v) => {
+          if (this.#wall) setWireframeMode(this.#wall.group, v)
+          if (this.#frame) setWireframeMode(this.#frame.group, v)
+        },
+      },
+
       ...createTransformControls('wall', this.#wall.group, 'Wall Transform'),
       ...createTransformControls('frame', this.#frame.group, 'Frame Transform', () => this.#updateInteractivePlane()),
-      
-      { name: 'Reveal Factor', property: 'uRevealFactor', folder: 'Shaders', type: 'range', range: [0, 3, 0.001], initialValue: this.#interactivePlane?.uniforms.uRevealFactor.value || 0, onChange: (v) => { if (this.#interactivePlane) { this.#interactivePlane.uniforms.uRevealFactor.value = v; this.#updateInteractivePlane() }}},
-      { name: 'Environment Intensity', property: 'environmentIntensity', folder: 'Environment', type: 'range', range: [0, 2, 0.01], initialValue: this.#scene.instance.environmentIntensity || 0.5, onChange: (v) => this.#scene.instance.environmentIntensity = v },
-      { name: 'Background Intensity', property: 'backgroundIntensity', folder: 'Environment', type: 'range', range: [0, 2, 0.01], initialValue: this.#scene.instance.backgroundIntensity || 0.3, onChange: (v) => this.#scene.instance.backgroundIntensity = v },
-      { name: 'Restart Preloader', property: 'restartPreloader', type: 'button', folder: 'Preloader', onChange: () => { if (this.#preloaderEffect) { this.#preloaderEffect.dispose(); this.#scene.instance.remove(this.#preloaderEffect.mesh) } this.#isPreloaderActive = true; this.#setupPreloader() }}
+
+      {
+        name: 'Reveal Factor',
+        property: 'uRevealFactor',
+        folder: 'Shaders',
+        type: 'range',
+        range: [0, 3, 0.001],
+        initialValue: this.#interactivePlane?.uniforms.uRevealFactor.value || 0,
+        onChange: (v) => {
+          if (this.#interactivePlane) {
+            this.#interactivePlane.uniforms.uRevealFactor.value = v
+            this.#updateInteractivePlane()
+          }
+        },
+      },
+      {
+        name: 'Environment Intensity',
+        property: 'environmentIntensity',
+        folder: 'Environment',
+        type: 'range',
+        range: [0, 2, 0.01],
+        initialValue: this.#scene.instance.environmentIntensity || 0.5,
+        onChange: (v) => (this.#scene.instance.environmentIntensity = v),
+      },
+      {
+        name: 'Background Intensity',
+        property: 'backgroundIntensity',
+        folder: 'Environment',
+        type: 'range',
+        range: [0, 2, 0.01],
+        initialValue: this.#scene.instance.backgroundIntensity || 0.3,
+        onChange: (v) => (this.#scene.instance.backgroundIntensity = v),
+      },
+      {
+        name: 'Restart Preloader',
+        property: 'restartPreloader',
+        type: 'button',
+        folder: 'Preloader',
+        onChange: () => {
+          if (this.#preloaderEffect) {
+            this.#preloaderEffect.dispose()
+            this.#scene.instance.remove(this.#preloaderEffect.mesh)
+          }
+          this.#isPreloaderActive = true
+          this.#setupPreloader()
+        },
+      },
     ]
 
     this.#debug.add(debugControls)

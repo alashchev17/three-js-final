@@ -32,15 +32,15 @@ export class InteractivePlane {
   #y = -2.5
   #hasActiveIntersection = false
 
-  constructor(textures, cloudNoiseTexture, grainPaperTexture, brushTexture, renderer) {
+  constructor(textures, brushTexture, renderer) {
     this.renderer = renderer
     this.#setupDrawMap()
-    this.#createMaterial(textures, cloudNoiseTexture, grainPaperTexture, brushTexture)
+    this.#createMaterial(textures, brushTexture)
     this.#createMesh()
   }
 
   #setupDrawMap() {
-    this.#drawMapRenderTarget = new WebGLRenderTarget(512 * 1.4, 512, {
+    this.#drawMapRenderTarget = new WebGLRenderTarget(1024 * 1.4, 1024, {
       minFilter: LinearFilter,
       magFilter: LinearFilter,
       format: RGBAFormat,
@@ -61,7 +61,7 @@ export class InteractivePlane {
     this.#brushScene.add(this.#brushMesh)
   }
 
-  #createMaterial(textures, cloudNoiseTexture, grainPaperTexture, brushTexture) {
+  #createMaterial(textures, brushTexture) {
     const textureA = textures[0] || new Texture()
     const textureB = textures[1] || new Texture()
 
