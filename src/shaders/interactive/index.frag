@@ -6,7 +6,7 @@ uniform sampler2D uTextureB;
 uniform sampler2D uDrawMap;
 uniform sampler2D uBrushTexture;
 uniform float uRevealFactor;
-uniform bool uInvertTextureA; // used to determine if we substract textureA or not
+uniform bool uInvertTextureA;
 
 varying vec2 vUv;
 
@@ -25,7 +25,6 @@ vec3 valueRemap(vec3 value, float oldMin, float oldMax, float newMin, float newM
 }
 
 void main() {
-  // HARDCODED TO CHANGE
   float revealFactor = uRevealFactor;
   float aspectRatio = 1.4;
 
