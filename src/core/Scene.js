@@ -1,16 +1,16 @@
-import * as THREE from 'three'
+import { Scene as ThreeScene, AmbientLight, DirectionalLight, PointLight, Color } from 'three'
 
 export class Scene {
   constructor() {
-    this.instance = new THREE.Scene()
+    this.instance = new ThreeScene()
     this.#setupLighting()
   }
 
   #setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.3)
+    const ambientLight = new AmbientLight(0x404040, 0.3)
     this.instance.add(ambientLight)
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
+    const directionalLight = new DirectionalLight(0xffffff, 0.8)
     directionalLight.position.set(5, 10, 5)
     directionalLight.castShadow = true
     directionalLight.shadow.mapSize.setScalar(2048)
@@ -25,15 +25,15 @@ export class Scene {
   }
 
   setupFallbackLighting() {
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.4)
+    const fillLight = new DirectionalLight(0xffffff, 0.4)
     fillLight.position.set(-5, 5, 3)
     this.instance.add(fillLight)
 
-    const warmLight = new THREE.PointLight(0xffaa66, 0.5, 20)
+    const warmLight = new PointLight(0xffaa66, 0.5, 20)
     warmLight.position.set(2, 3, 2)
     this.instance.add(warmLight)
 
-    this.instance.background = new THREE.Color(0x222222)
+    this.instance.background = new Color(0x222222)
   }
 
   add(object) {

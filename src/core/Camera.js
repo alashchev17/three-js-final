@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import { PerspectiveCamera } from 'three'
 import { gsap } from 'gsap'
 
 export class Camera {
@@ -6,9 +6,9 @@ export class Camera {
   #originalRotation
 
   constructor() {
-    this.instance = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100)
+    this.instance = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100)
 
-    this.instance.position.set(0, 1.5, 25)
+    this.instance.position.set(0, 1.5, 35)
     this.#originalPosition = this.instance.position.clone()
     this.#originalRotation = this.instance.rotation.clone()
   }

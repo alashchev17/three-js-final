@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import { MeshStandardMaterial } from 'three'
 
 export class Frame {
   #gltf
@@ -15,7 +15,7 @@ export class Frame {
         child.castShadow = true
         child.receiveShadow = false
 
-        child.material = new THREE.MeshStandardMaterial({
+        child.material = new MeshStandardMaterial({
           color: 0x8b4513,
           roughness: 0.8,
           metalness: 0.1,
@@ -24,7 +24,7 @@ export class Frame {
     })
 
     this.group.rotation.set(0, 0, 0)
-    this.group.scale.set(0.04, 0.04, 0.04)
+    this.group.scale.set(0.06, 0.06, 0.06)
     this.group.position.set(0, 0, 0)
   }
 }

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Raycaster as ThreeRaycaster, Vector2 } from 'three'
 
 export class Raycaster {
   #raycaster;
@@ -7,24 +7,24 @@ export class Raycaster {
   #scene;
 
   constructor(camera, scene) {
-    this.#camera = camera;
-    this.#scene = scene;
-    this.#raycaster = new THREE.Raycaster();
-    this.#pointer = new THREE.Vector2();
+    this.#camera = camera
+    this.#scene = scene
+    this.#raycaster = new ThreeRaycaster()
+    this.#pointer = new Vector2()
   }
 
   updatePointer(normalizedMouse) {
-    this.#pointer.copy(normalizedMouse);
+    this.#pointer.copy(normalizedMouse)
   }
 
   checkIntersections(targetObjects = []) {
-    this.#raycaster.setFromCamera(this.#pointer, this.#camera);
-    const intersects = this.#raycaster.intersectObjects(targetObjects, true);
-    return intersects;
+    this.#raycaster.setFromCamera(this.#pointer, this.#camera)
+    const intersects = this.#raycaster.intersectObjects(targetObjects, true)
+    return intersects
   }
 
   getFirstIntersection(targetObjects = []) {
-    const intersects = this.checkIntersections(targetObjects);
-    return intersects.length > 0 ? intersects[0] : null;
+    const intersects = this.checkIntersections(targetObjects)
+    return intersects.length > 0 ? intersects[0] : null
   }
 }

@@ -4,13 +4,23 @@ import { GUI } from 'lil-gui'
 export class Debug {
   #stats
   #gui
-  params = {}           // Current parameter values
-  controllers = {}      // Map property -> controller
-  folders = {}          // Map folderName -> GUI folder
+  #isDebugMode
+  params = {} // Current parameter values
+  controllers = {} // Map property -> controller
+  folders = {} // Map folderName -> GUI folder
 
   constructor({ enableStats = true } = {}) {
-    if (enableStats) this.#setupStats()
-    this.#setupGUI()
+    this.#isDebugMode = this.#checkDebugMode()
+
+    if (this.#isDebugMode) {
+      if (enableStats) this.#setupStats()
+      this.#setupGUI()
+    }
+  }
+
+  #checkDebugMode() {
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('debug') === 'true'
   }
 
   #setupStats() {
@@ -34,20 +44,20 @@ export class Debug {
   /**
    * Add debug controls from definitions array
    * @param {Array} definitions - Control definitions
-   * Each definition: { name, property, type:'boolean'|'range', range?:[min,max,step], 
+   * Each definition: { name, property, type:'boolean'|'range', range?:[min,max,step],
    *                   folder?: 'Folder Name', initialValue?, onChange: value => {} }
    */
   add(definitions = []) {
-    definitions.forEach(def => {
+    // Only add controls if debug mode is enabled
+    if (!this.#isDebugMode) return
+
+    definitions.forEach((def) => {
       // Initialize parameter with provided initial value or sensible defaults
-      this.params[def.property] = def.initialValue !== undefined 
-        ? def.initialValue 
-        : (def.type === 'boolean' ? false : (def.range ? def.range[0] : 0))
+      this.params[def.property] =
+        def.initialValue !== undefined ? def.initialValue : def.type === 'boolean' ? false : def.range ? def.range[0] : 0
 
       // Get or create folder
-      const parent = def.folder
-        ? (this.folders[def.folder] ||= this.#gui.addFolder(def.folder))
-        : this.#gui
+      const parent = def.folder ? (this.folders[def.folder] ||= this.#gui.addFolder(def.folder)) : this.#gui
 
       // Create controller based on type
       let controller
@@ -56,12 +66,16 @@ export class Debug {
       } else if (def.type === 'range' && def.range) {
         const [min, max, step] = def.range
         controller = parent.add(this.params, def.property, min, max, step).name(def.name)
+      } else if (def.type === 'button') {
+        // For buttons, create a dummy function property
+        this.params[def.property] = def.onChange || (() => {})
+        controller = parent.add(this.params, def.property).name(def.name)
       } else {
         controller = parent.add(this.params, def.property).name(def.name)
       }
 
-      // Wire onChange callback
-      if (typeof def.onChange === 'function') {
+      // Wire onChange callback (except for buttons which handle it differently)
+      if (typeof def.onChange === 'function' && def.type !== 'button') {
         controller.onChange(def.onChange)
       }
 
@@ -71,10 +85,17 @@ export class Debug {
   }
 
   update() {
-    this.#stats?.update()
+    // Only update stats if debug mode is enabled
+    if (this.#isDebugMode) {
+      this.#stats?.update()
+    }
   }
 
   get gui() {
     return this.#gui
+  }
+
+  get isDebugMode() {
+    return this.#isDebugMode
   }
 }

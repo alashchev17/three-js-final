@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import { Clock, Box3, Vector3 } from 'three'
 import { Camera } from './Camera.js'
 import { Renderer } from './Renderer.js'
 import { Scene } from './Scene.js'
@@ -6,6 +6,7 @@ import { Loaders } from './Loaders.js'
 import { Wall } from '../components/Wall.js'
 import { Frame } from '../components/Frame.js'
 import { InteractivePlane } from '../components/InteractivePlane.js'
+import { PreloaderEffect } from '../components/PreloaderEffect.js'
 import { Mouse } from '../utils/Mouse.js'
 import { Raycaster } from '../components/Raycaster.js'
 import { Debug } from '../utils/Debug.js'
@@ -25,18 +26,18 @@ export class App {
   #wall
   #frame
   #interactivePlane
+  #preloaderEffect
   #debug
   #orbitControls
+  #isPreloaderActive = true
 
   constructor() {
     this.#canvas = document.getElementById('canvas')
-    this.#clock = new THREE.Clock()
-
+    this.#clock = new Clock()
     this.init()
   }
 
   async init() {
-    // Initialize core components
     this.#scene = new Scene()
     this.#camera = new Camera()
     this.#renderer = new Renderer(this.#canvas)
@@ -46,45 +47,40 @@ export class App {
     this.#debug = new Debug({ enableStats: true })
     this.#orbitControls = new OrbitControlsWrapper(this.#camera.instance, this.#canvas)
 
-    // Load assets
     await this.#loadAssets()
-
-    // Setup components
     this.#setupComponents()
-
-    // Setup debug UI
+    this.#setupPreloader()
     this.#setupDebugUI()
-
-    // Setup events
     this.#setupEvents()
-
-    // Start animation loop
     this.#animate()
   }
 
   async #loadAssets() {
     try {
       const [wallGltf, frameGltf] = await Promise.all([
-        this.#loaders.loadGLTF('/models/cracked_red_brick_wall_low_poly_high_detail.glb'),
+        this.#loaders.loadGLTF('/models/gallery_bare_concrete_wall.glb'),
         this.#loaders.loadGLTF('/models/picture_frame.glb'),
       ])
 
-      const [textureA, textureB, cloudNoiseTexture, paintNoiseTexture, brushTexture] = await Promise.all([
+      const [textureA, textureB, cloudNoiseTexture, grainPaperTexture, brushTexture] = await Promise.all([
         this.#loaders.loadTexture('/textures/imagery/1.jpg'),
         this.#loaders.loadTexture('/textures/imagery/2.jpg'),
         this.#loaders.loadTexture('/textures/cloud-noise/cloud_noise.png'),
-        this.#loaders.loadTexture('/textures/cloud-noise/paint_noise.png'),
+        this.#loaders.loadTexture('/textures/paper-texture.jpg'),
         this.#loaders.loadTexture('/textures/paint-brush-mask.webp'),
       ])
 
       try {
-        await this.#loaders.loadEnvironment('/env-map/bethnal_green_entrance_4k.exr', this.#renderer.instance, this.#scene.instance)
+        await this.#loaders.loadEnvironment('/env-map/bethnal_green_entrance_4k.exr', this.#renderer.instance, this.#scene.instance, {
+          environmentIntensity: 0.5,
+          backgroundIntensity: 0.3
+        })
       } catch (envError) {
         console.warn('HDRI failed to load, using fallback lighting.')
         this.#scene.setupFallbackLighting()
       }
 
-      this.#assets = { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, paintNoiseTexture, brushTexture }
+      this.#assets = { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, grainPaperTexture, brushTexture }
     } catch (error) {
       console.error('Failed to load assets:', error)
       throw error
@@ -97,17 +93,18 @@ export class App {
       return
     }
 
-    const { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, paintNoiseTexture, brushTexture } = this.#assets
+    const { wallGltf, frameGltf, textureA, textureB, cloudNoiseTexture, grainPaperTexture, brushTexture } = this.#assets
 
     this.#wall = new Wall(wallGltf)
-    this.#wall.group.position.set(0, -7.5, 14.4)
+    this.#wall.group.position.set(0, 0, 0)
     this.#wall.group.rotation.set(-0.025, 0, 0)
+    this.#wall.group.scale.setScalar(7)
 
     this.#frame = new Frame(frameGltf)
     this.#interactivePlane = new InteractivePlane(
       [textureA, textureB],
       cloudNoiseTexture,
-      paintNoiseTexture,
+      grainPaperTexture,
       brushTexture,
       this.#renderer.instance
     )
@@ -127,11 +124,11 @@ export class App {
     const frameG = this.#frame.group
     const planeM = this.#interactivePlane.mesh
 
-    const box = new THREE.Box3().setFromObject(frameG)
-    const size = new THREE.Vector3()
+    const box = new Box3().setFromObject(frameG)
+    const size = new Vector3()
     box.getSize(size)
 
-    const center = new THREE.Vector3()
+    const center = new Vector3()
     box.getCenter(center)
     planeM.position.copy(center)
 
@@ -147,137 +144,52 @@ export class App {
     planeM.position.z += 0.01
   }
 
+  #setupPreloader() {
+    if (!this.#assets) return
+
+    const { grainPaperTexture, brushTexture } = this.#assets
+
+    this.#preloaderEffect = new PreloaderEffect(
+      this.#renderer.instance,
+      this.#scene.instance,
+      this.#camera.instance,
+      grainPaperTexture,
+      brushTexture,
+      () => {
+        this.#isPreloaderActive = false
+      }
+    )
+
+    setTimeout(() => {
+      this.#preloaderEffect.start()
+    }, 500)
+  }
+
   #setupDebugUI() {
+    const createTransformControls = (name, target, folder, updateCallback) => [
+      { name: 'Scale', property: `${name}Scale`, type: 'range', range: [0.01, 10, 0.01], folder, initialValue: target.scale.x, onChange: (v) => { target.scale.setScalar(v); updateCallback?.() }},
+      { name: 'Position X', property: `${name}X`, type: 'range', range: [-10, 10, 0.1], folder, initialValue: target.position.x, onChange: (v) => { target.position.x = v; updateCallback?.() }},
+      { name: 'Position Y', property: `${name}Y`, type: 'range', range: [-10, 10, 0.1], folder, initialValue: target.position.y, onChange: (v) => { target.position.y = v; updateCallback?.() }},
+      { name: 'Position Z', property: `${name}Z`, type: 'range', range: [-10, 10, 0.1], folder, initialValue: target.position.z, onChange: (v) => { target.position.z = v; updateCallback?.() }},
+      { name: 'Rotation X', property: `${name}RotX`, type: 'range', range: [0, Math.PI * 2, 0.01], folder, initialValue: target.rotation.x, onChange: (v) => { target.rotation.x = v; updateCallback?.() }},
+      { name: 'Rotation Y', property: `${name}RotY`, type: 'range', range: [0, Math.PI * 2, 0.01], folder, initialValue: target.rotation.y, onChange: (v) => { target.rotation.y = v; updateCallback?.() }},
+      { name: 'Rotation Z', property: `${name}RotZ`, type: 'range', range: [0, Math.PI * 2, 0.01], folder, initialValue: target.rotation.z, onChange: (v) => { target.rotation.z = v; updateCallback?.() }}
+    ]
+
     const debugControls = [
-      {
-        name: 'Orbit Controls',
-        property: 'orbitControls',
-        type: 'boolean',
-        initialValue: false,
-        onChange: (value) => {
-          if (value) {
-            this.#orbitControls.enable()
-          } else {
-            this.#orbitControls.disable()
-          }
-        },
-      },
-      {
-        name: 'Show Wall',
-        property: 'showWall',
-        type: 'boolean',
-        initialValue: true,
-        onChange: (value) => setVisibility(this.#wall?.group, value),
-      },
-      {
-        name: 'Show Frame',
-        property: 'showFrame',
-        type: 'boolean',
-        initialValue: true,
-        onChange: (value) => setVisibility(this.#frame?.group, value),
-      },
-      {
-        name: 'Show Plane',
-        property: 'showPlane',
-        type: 'boolean',
-        initialValue: true,
-        onChange: (value) => setVisibility(this.#interactivePlane?.mesh, value),
-      },
-      {
-        name: 'Wireframe Mode',
-        property: 'wireframe',
-        type: 'boolean',
-        initialValue: false,
-        onChange: (value) => {
-          if (this.#wall) setWireframeMode(this.#wall.group, value)
-          if (this.#frame) setWireframeMode(this.#frame.group, value)
-        },
-      },
-      // Frame Transform controls
-      {
-        name: 'Scale',
-        property: 'frameScale',
-        type: 'range',
-        range: [0.01, 1.0, 0.01],
-        folder: 'Frame Transform',
-        initialValue: this.#frame.group.scale.x,
-        onChange: (value) => {
-          this.#frame.group.scale.setScalar(value)
-          this.#updateInteractivePlane()
-        },
-      },
-      {
-        name: 'Position X',
-        property: 'frameX',
-        type: 'range',
-        range: [-10, 5, 0.1],
-        folder: 'Frame Transform',
-        initialValue: this.#frame.group.position.x,
-        onChange: (value) => {
-          this.#frame.group.position.x = value
-          this.#updateInteractivePlane()
-        },
-      },
-      {
-        name: 'Position Y',
-        property: 'frameY',
-        type: 'range',
-        range: [-10, 5, 0.1],
-        folder: 'Frame Transform',
-        initialValue: this.#frame.group.position.y,
-        onChange: (value) => {
-          this.#frame.group.position.y = value
-          this.#updateInteractivePlane()
-        },
-      },
-      {
-        name: 'Position Z',
-        property: 'frameZ',
-        type: 'range',
-        range: [-10, 2, 0.1],
-        folder: 'Frame Transform',
-        initialValue: this.#frame.group.position.z,
-        onChange: (value) => {
-          this.#frame.group.position.z = value
-          this.#updateInteractivePlane()
-        },
-      },
-      {
-        name: 'Rotation X',
-        property: 'frameRotationX',
-        type: 'range',
-        range: [0, Math.PI * 2, 0.01],
-        folder: 'Frame Transform',
-        initialValue: this.#frame.group.rotation.x,
-        onChange: (value) => {
-          this.#frame.group.rotation.x = value
-          this.#updateInteractivePlane()
-        },
-      },
-      {
-        name: 'Rotation Y',
-        property: 'frameRotationY',
-        type: 'range',
-        range: [0, Math.PI * 2, 0.01],
-        folder: 'Frame Transform',
-        initialValue: this.#frame.group.rotation.y,
-        onChange: (value) => {
-          this.#frame.group.rotation.y = value
-          this.#updateInteractivePlane()
-        },
-      },
-      {
-        name: 'Rotation Z',
-        property: 'frameRotationZ',
-        type: 'range',
-        range: [0, Math.PI * 2, 0.01],
-        folder: 'Frame Transform',
-        initialValue: this.#frame.group.rotation.z,
-        onChange: (value) => {
-          this.#frame.group.rotation.z = value
-          this.#updateInteractivePlane()
-        },
-      },
+      { name: 'Orbit Controls', property: 'orbitControls', type: 'boolean', initialValue: false, onChange: (v) => v ? this.#orbitControls.enable() : this.#orbitControls.disable() },
+      { name: 'Show Wall', property: 'showWall', type: 'boolean', initialValue: true, onChange: (v) => setVisibility(this.#wall?.group, v) },
+      { name: 'Show Frame', property: 'showFrame', type: 'boolean', initialValue: true, onChange: (v) => setVisibility(this.#frame?.group, v) },
+      { name: 'Show Plane', property: 'showPlane', type: 'boolean', initialValue: true, onChange: (v) => setVisibility(this.#interactivePlane?.mesh, v) },
+      { name: 'Wireframe Mode', property: 'wireframe', type: 'boolean', initialValue: false, onChange: (v) => { if (this.#wall) setWireframeMode(this.#wall.group, v); if (this.#frame) setWireframeMode(this.#frame.group, v) }},
+      
+      ...createTransformControls('wall', this.#wall.group, 'Wall Transform'),
+      ...createTransformControls('frame', this.#frame.group, 'Frame Transform', () => this.#updateInteractivePlane()),
+      
+      { name: 'Reveal Factor', property: 'uRevealFactor', folder: 'Shaders', type: 'range', range: [0, 3, 0.001], initialValue: this.#interactivePlane?.uniforms.uRevealFactor.value || 0, onChange: (v) => { if (this.#interactivePlane) { this.#interactivePlane.uniforms.uRevealFactor.value = v; this.#updateInteractivePlane() }}},
+      { name: 'Environment Intensity', property: 'environmentIntensity', folder: 'Environment', type: 'range', range: [0, 2, 0.01], initialValue: this.#scene.instance.environmentIntensity || 0.5, onChange: (v) => this.#scene.instance.environmentIntensity = v },
+      { name: 'Background Intensity', property: 'backgroundIntensity', folder: 'Environment', type: 'range', range: [0, 2, 0.01], initialValue: this.#scene.instance.backgroundIntensity || 0.3, onChange: (v) => this.#scene.instance.backgroundIntensity = v },
+      { name: 'Restart Preloader', property: 'restartPreloader', type: 'button', folder: 'Preloader', onChange: () => { if (this.#preloaderEffect) { this.#preloaderEffect.dispose(); this.#scene.instance.remove(this.#preloaderEffect.mesh) } this.#isPreloaderActive = true; this.#setupPreloader() }}
     ]
 
     this.#debug.add(debugControls)
@@ -288,13 +200,15 @@ export class App {
       if (!this.#orbitControls.enabled) {
         this.#camera.updateFromMouse(normalized)
       }
-      this.#interactivePlane?.updateMouse(normalized)
-      this.#raycaster.updatePointer(normalized)
 
-      // Check raycaster intersection with the plane
-      if (this.#interactivePlane) {
-        const intersection = this.#raycaster.getFirstIntersection([this.#interactivePlane.mesh])
-        this.#interactivePlane.updateIntersection(intersection)
+      if (!this.#isPreloaderActive) {
+        this.#interactivePlane?.updateMouse(normalized)
+        this.#raycaster.updatePointer(normalized)
+
+        if (this.#interactivePlane) {
+          const intersection = this.#raycaster.getFirstIntersection([this.#interactivePlane.mesh])
+          this.#interactivePlane.updateIntersection(intersection)
+        }
       }
     })
 
@@ -304,19 +218,31 @@ export class App {
   #resize() {
     this.#camera.updateAspect()
     this.#renderer.updateSize()
+    this.#preloaderEffect?.updateSize()
   }
 
   #animate = () => {
     const dTime = this.#clock.getDelta()
     const time = this.#clock.elapsedTime
 
-    if (this.#interactivePlane) {
+    if (this.#preloaderEffect) {
+      this.#preloaderEffect.update(time)
+    }
+
+    if (this.#interactivePlane && !this.#isPreloaderActive) {
       this.#interactivePlane.update(time, dTime)
     }
 
     this.#orbitControls.update()
     this.#debug.update()
+
     this.#renderer.render(this.#scene.instance, this.#camera.instance)
+
+    if (this.#preloaderEffect) {
+      this.#renderer.autoClear = false
+      this.#renderer.render(this.#preloaderEffect.overlayScene, this.#preloaderEffect.overlayCamera)
+      this.#renderer.autoClear = true
+    }
 
     requestAnimationFrame(this.#animate)
   }
