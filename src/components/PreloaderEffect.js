@@ -79,7 +79,7 @@ export class PreloaderEffect {
       uDrawMap: { value: this.#drawTarget.texture },
       uBrushTexture: { value: this.brushTexture },
       uRevealFactor: { value: 0.0 },
-      uShouldShowTextureA: { value: true },
+      uInvertTextureA: { value: true },
     }
 
     this.#material = new ShaderMaterial({

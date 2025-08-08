@@ -72,7 +72,7 @@ export class InteractivePlane {
       uDrawMap: { value: this.#drawMapRenderTarget.texture },
       uBrushTexture: { value: brushTexture },
       uRevealFactor: { value: 0.554 },
-      uShouldShowTextureA: { value: false },
+      uInvertTextureA: { value: false },
       // TODO: better to make this thing not hardcoded in the shader, but have no time :(
       // uAspectRatio: { value: aspectRatio },
     }

@@ -6,7 +6,7 @@ uniform sampler2D uTextureB;
 uniform sampler2D uDrawMap;
 uniform sampler2D uBrushTexture;
 uniform float uRevealFactor;
-uniform bool uShouldShowTextureA; // used to determine if we substract textureA or not
+uniform bool uInvertTextureA; // used to determine if we substract textureA or not
 
 varying vec2 vUv;
 
@@ -40,10 +40,10 @@ void main() {
   reveal = 1. - clamp(reveal - drawFactor, 0.0, 1.0);
 
   vec4 textureA;
-  if (!uShouldShowTextureA) {
-    textureA = 1. - texture2D(uTextureA, vUv) + 0.1; // makes a nice map based on the 1.jpg in a mix with revealFactor
+  if (!uInvertTextureA) {
+    textureA = 1. - texture2D(uTextureA, vUv) + 0.1; // inverting textureA, makes a nice map based on the 1.jpg in a mix with revealFactor
   } else {
-    textureA = texture2D(uTextureA, vUv) + 0.1; // makes a nice map based on the 1.jpg in a mix with revealFactor
+    textureA = texture2D(uTextureA, vUv) + 0.1; // rendering normal textureA as we should
   }
   vec4 textureB = texture2D(uTextureB, vUv);
   
