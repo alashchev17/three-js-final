@@ -10,7 +10,7 @@ This project creates a sophisticated gallery environment where visitors explore 
 
 ### Core Implementation ✅
 
-- **glTF Models**: Gallery concrete wall and detailed picture frame
+- **glTF Models**: Gallery concrete wall and detailed picture frame (textures in models are compressed)
 - **HDRI Lighting**: Bethnal Green environment map with fallback directional lighting
 - **Interactive Shader**: Custom fragment shader with brush-based texture blending
 - **Mouse Interactions**: Cursor position drives brush painting and camera parallax
@@ -125,6 +125,7 @@ public/
 - **Shadow Quality**: Balanced shadow map resolution for quality/performance
 - **Render Target Size**: 1024x1433.6px draw map for optimal brush detail
 - **Linear Filtering**: Smooth texture sampling on render targets
+- **Texture Sizes**: All textures are compressed via Squoosh for optimal performance
 
 ### Shader Architecture
 

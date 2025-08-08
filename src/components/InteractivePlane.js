@@ -82,6 +82,7 @@ export class InteractivePlane {
       vertexShader,
       fragmentShader,
       side: FrontSide,
+      defines: { THREEJS_RUNTIME: 1 },
     })
   }
 

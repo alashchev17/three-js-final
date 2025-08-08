@@ -87,6 +87,7 @@ export class PreloaderEffect {
       vertexShader,
       fragmentShader,
       side: FrontSide,
+      defines: { THREEJS_RUNTIME: 1 },
     })
 
     this.#quadMesh = new Mesh(geometry, this.#material)

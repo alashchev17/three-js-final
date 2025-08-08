@@ -47,8 +47,11 @@ void main() {
   vec4 textureB = texture2D(uTextureB, vUv);
   
   gl_FragColor = mix(textureA, textureB, reveal);
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
-  #include <fog_fragment>
-  #include <dithering_fragment>
+
+  #ifdef THREEJS_RUNTIME
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    #include <fog_fragment>
+    #include <dithering_fragment>
+  #endif
 }
